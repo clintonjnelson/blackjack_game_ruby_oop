@@ -1,0 +1,43 @@
+OOP BRAINSTORMING FOR THE BLACKJACK GAME
+(Initial brainstorming - actual classes & methods subject to change)
+
+
+Nouns
+	Verbs
+______________________________
+Deck
+	Shuffling (Mixing)
+	Drawing
+	Adding	#adding additional card sets to the deck in play
+	Discarding
+Table/Hands
+	Displaying
+	Counting (Points)
+Card
+	Telling
+Player
+	Joining
+	Betting
+	-Hitting
+	-Staying
+	-Winning?
+	-Losing?
+Dealer
+	Dealing
+	-Hitting
+	-Staying
+	-Winning?
+	-Losing?
+Blackjack
+	Ordering (Ordering the Game like Blackjack)
+	Special Casing (Specific to Blackjack)
+	Deciding (win/lose)
+Money
+	Counting
+	Losing
+	Adding
+	
+
+	
+
+
