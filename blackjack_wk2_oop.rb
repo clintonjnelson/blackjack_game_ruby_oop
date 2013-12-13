@@ -5,29 +5,12 @@
 #require "rubygems"  #allows binding pry
 #require "pry"
 
-#TODO: Reduce use of direct instance variable (IV) calls in favor of getter/setter
-#TODO: Make dealer's first card not show
 #TODO: Reduce multiple-chase-method-calls to simplify the mental tracking
 #TODO: Add additional player option
-#TODO: I like my card hash, but we'll see if it lasts. Maybe set card values per game
-      #and have the game select the appropriate vard values.
-      #Deck could still come from Card_Deck, but blackjack_values would be the values.
-      #Otherwise, revert back to array.
 #TODO: Keep track of money & bets
 
 
-
 ####################Modules#######################
-module PlayerNames
-  # Computer player names
-  PLAYERNAMES = [ 'Chris', 'Richard', 'Bart', 'Albert', 'Jorge', 'Jay-Ar', 'Thomas',
-                  'Steve', 'Nathan', 'Amber', 'Savio', 'Adam', 'Yuchuan', 'Shawn',
-                  'Yu', 'Clint', 'Steven', 'Lee', 'Andreas', 'Daniel', 'Joey',
-                  'Hyunsoo', 'Matthew', 'Yong', 'Dai', 'Quentin', 'Josh', 'Roy',
-                  'James']
-end
-
-
 module DeckConstants
   # Standard 52 card deck & values
   CARD_DECK =   { h2: 2, h3: 3, h4: 4, h5: 5, h6: 6, h7: 7, h8: 8, h9: 9, h10: 10, hj: 10, hq: 10, hk: 10, ha: 11,
@@ -45,35 +28,31 @@ end
 
 module Playing
 
-  # Calculates & udpates player's total points (@points)
-  # Returns int
+  # Calculates & udpates player's total points (@points). Returns: int
   def total
-    @points = 0
-    @hand.each{|card| @points += card.value}
+    self.points = 0
+    hand.each{|card| self.points += card.value}
     #puts "Mid-calc total is #{@points}"
-    if @points > 21
+    if points > 21
       self.aces
     end
-    @points
+    points
   end
 
-  # def display
-  #   puts ""
-  # end
-
-  # Adds a card from deck to player's hand, updates handsym array
-  # Takes: Card object // Returns: Interger
-  def hit(card)
-    @hand.push(card)
-    puts "==> Dealer dealt #{@name} #{card.to_s}"
+  # Adds a card from deck to hand, updates handsym array. Takes: Card object // Returns: Interger
+  def hit(card, show = true)
+    hand.push(card)
+    show ? (puts "==> Dealer dealt #{@name} #{card.to_s}") : (puts "==> Dealer deals card face down.")
     self.hand_sym
     self.total
   end
 
+  # The stay function. Returns: nil
   def stay
     return
   end
 
+  # Check for aces - adjust the points as necessary/able
   def aces
     numaces = 0
     acecards = [:ha, :da, :sa, :ca]
@@ -86,24 +65,45 @@ module Playing
     end
   end
 
+  # Update the symbols for the player's hand
   def hand_sym
     @handsym = []
     @hand.each{|card| @handsym.push(card.symbol)}
   end
 
+  # Boolean to determine if points broke 21
   def break?
     return true if @points > 21
   end
 
+  # Reset each player's game state
   def reset
-    @points = 0
-    @hand = []
+    self.points = 0
+    self.hand = []
   end
 end
 
 
 ####################Class Defs#####################
-class Deck < Array
+class Card
+  include DeckConstants
+  attr_accessor :symbol, :name, :value
+
+  # Populates values, including name & value based on argument & CONSTANTS.
+  def initialize (s)
+    @symbol = s
+    @name = DeckConstants::CARD_NAMES[s]
+    @value = DeckConstants::CARD_DECK[s]
+  end
+
+  # Tell card information
+  def to_s
+    "the #{name} worth #{value} points"
+  end
+end
+
+
+class Deck
   include DeckConstants
   attr_accessor :numdecks
   attr_reader :deck
@@ -147,25 +147,35 @@ class Deck < Array
 end
 
 
-class Card
-  include DeckConstants
-  attr_accessor :symbol, :name, :value
+class Player
+  include Playing
+  attr_accessor :name, :hand, :points
 
-  def initialize (s)
-    @symbol = s
-    @name = DeckConstants::CARD_NAMES[s]
-    @value = DeckConstants::CARD_DECK[s]
+  def initialize
+    @hand = []
+  end
+end
+
+
+class Dealer
+  include Playing
+  attr_accessor :name, :hand, :points
+
+  def initialize
+    @name = "The Dealer"
+    @hand = []
   end
 
-  # Tell card information
-  def to_s
-    "the #{name} worth #{value} points"
+  # Deciding if Dealer will hit or not
+  def hit?(playerpoints)
+    (self.total < 17) || (self.total < playerpoints) ? true : false
   end
 end
 
 
 class Blackjack
   attr_accessor :name
+  attr_reader :player
 
   def initialize
     @player = Player.new
@@ -183,8 +193,11 @@ class Blackjack
       played = true
       self.prepdeck
       self.deal
-      self.gameupdate([@dealer, @player])
+      self.gameupdate(@dealer, false)
+      self.gameupdate(@player)
       self.playerplay
+      self.gameupdate(@dealer)
+      self.gameupdate(@player)
       if @player.break?
         self.decidegame
         next
@@ -194,7 +207,7 @@ class Blackjack
     end
   end
 
-  # Deciding if will play again
+  # Ask player if they will "play" or "play again", or quit
   def playagain(played = false)
     played ? (puts "Would you like to play again?") : (puts "Welcome to the game, #{name}. Would you like to play?")
     @player.name = "You"
@@ -213,24 +226,29 @@ class Blackjack
     end
   end
 
+  # Welcoming player to the table/game & getting their name
   def welcome
-    puts "Welcome to the Blackjack Table! \n This is a 1-player table playing with 2 decks"
+    puts "Welcome to the Blackjack Table! \n This is a head-to-head table playing with 2 decks"
     puts "What's your name?"
-    @name = gets.chomp
-    @player.name = @name
+    self.name = gets.chomp
+    @player.name = self.name
   end
 
+  # Putting together the deck - set to (2) decks.
+  # (I chose 2-fixed because player never gets to decide that in real life.)
   def prepdeck
     @deck = Deck.new(2)
   end
 
+  # Dealing cards to player & dealer - one draw hidden
   def deal
-    2.times do |_|
+      @player.hit(@deck.draw)
+      @dealer.hit(@deck.draw, false)
       @player.hit(@deck.draw)
       @dealer.hit(@deck.draw)
-    end
   end
 
+  # Flowpath for Dealer's game decisions/play
   def dealerplay
     while @dealer.hit?(@player.points)
       @dealer.hit(@deck.draw)
@@ -239,6 +257,7 @@ class Blackjack
     end
   end
 
+  # Flowpath for Player's game play
   def playerplay
     until @player.break?
       puts "What would you like to do? (Enter 'Hit' or 'Stay')"
@@ -254,17 +273,30 @@ class Blackjack
     end
   end
 
-  def gameupdate(players)
-    puts "\n\nCurrent Standings:"
-    players.each do |player|
-      self.display(player)
+  # Updating status of the game for person. Take: Array of players
+  def gameupdate(person, show = true)
+    if show
+      puts "\n\nCurrent Standings:"
+      self.display(person)
+    else
+      puts "\n\nCurrent Standings:"
+      self.hide_display(person)
     end
   end
 
+  # Updating status of game for a person.
   def display(person)
     puts "\n#{person.name}: "
     person.hand.each{|e| puts "\t #{e}"}
     puts "\t Points: #{person.points} \n \n"
+  end
+
+  # Show all but first card. hide_hand drops first from array & holds rest.
+  def hide_display(person, show = true)
+    puts "\n#{person.name}: "
+    hide_hand = person.hand.drop(1)
+    hide_hand.each{|e| puts "\t #{e}"}
+    puts "\t Points: #{(hide_hand[0].value)} \n \n"
   end
 
   # Deciding & announcing winner
@@ -293,31 +325,6 @@ class Blackjack
     @count +=1
     system('clear')
     puts "\n\n_________________Round #{@count}_______________________"
-  end
-end
-
-
-class Player
-  include Playing
-  attr_accessor :name, :hand, :points
-
-  def initialize
-    @hand = []
-  end
-end
-
-
-class Dealer
-  include Playing
-  attr_accessor :name, :hand, :points
-
-  def initialize
-    @name = "The Dealer"
-    @hand = []
-  end
-
-  def hit?(playerpoints)
-    (self.total < 17) || (self.total < playerpoints) ? true : false
   end
 end
 
