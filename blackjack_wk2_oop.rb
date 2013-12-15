@@ -27,13 +27,15 @@ end
 
 
 module Playing
+  BLACKJACK_NUM = 21
+  DEALER_MIN = 17
 
   # Calculates & udpates player's total points (@points). Returns: int
   def total
     self.points = 0
     hand.each{|card| self.points += card.value}
     #puts "Mid-calc total is #{@points}"
-    if points > 21
+    if points > BLACKJACK_NUM
       self.aces
     end
     points
@@ -61,7 +63,7 @@ module Playing
     numaces.times do
       @points -= 10
       #puts "Mid-calc total after adjusting aces is #{@points}"
-      break if @points < 21
+      break if @points <= BLACKJACK_NUM
     end
   end
 
@@ -73,7 +75,7 @@ module Playing
 
   # Boolean to determine if points broke 21
   def break?
-    return true if @points > 21
+    return true if @points > BLACKJACK_NUM
   end
 
   # Reset each player's game state
@@ -112,7 +114,7 @@ class Deck
   def initialize(numdecks = 1)
     @numdecks = numdecks
     @deck = []
-    @numdecks.times do |_|
+    @numdecks.times do
       DeckConstants::CARD_DECK.each {|k, v| @deck.push(Card.new(k))}
     end
     mix!
@@ -128,7 +130,7 @@ class Deck
     if d.between?(1, 8)
       @numdecks = d.to_int
       @deck = Array.new
-      @numdecks.times {|_| DeckConstants::CARD_DECK.each {|k, v| @deck.push(Card.new(k))}}
+      @numdecks.times { DeckConstants::CARD_DECK.each {|k, v| @deck.push(Card.new(k))}}
     else
       return nil
     end
@@ -168,7 +170,7 @@ class Dealer
 
   # Deciding if Dealer will hit or not
   def hit?(playerpoints)
-    (self.total < 17) || (self.total < playerpoints) ? true : false
+    (self.total < DEALER_MIN) || (self.total < playerpoints) ? true : false
   end
 end
 
